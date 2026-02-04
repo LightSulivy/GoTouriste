@@ -6,7 +6,7 @@ import (
 
 
 
-// Constantes et Enumérations
+// Constantes
 
 type NodeType int
 
