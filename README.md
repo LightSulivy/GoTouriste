@@ -1,2 +1,3 @@
 # GoTouriste
-Yes
+
+Fait par Bastien Teisseire et Lucas Lamisse.
