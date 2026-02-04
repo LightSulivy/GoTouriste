@@ -74,7 +74,7 @@ type Solution struct {
 
 
 
-// Helpers
+// Initialisation de l'instance 
 
 func NewInstance(nbPoints int) *Instance {
 	inst := &Instance{
