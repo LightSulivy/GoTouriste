@@ -1,0 +1,38 @@
+The first line contains the following data: 
+	N H D
+
+Where
+	N 	= number of vertices + 2
+	H	= number of extra hotels (total number of hotels excluding initial and final ones) 
+	D	= number of trips
+
+The second line contains:
+ 
+	Tmax	= total tour length
+
+The third line contains:
+
+	Td	= trip length for each trip d
+
+The remaining lines contain data about location, score, service time and time windows:
+
+	name x y Si St Oi Ci
+
+Where
+	name	= node name
+	x	= x coordinate 
+	y	= y coordinate
+	Si	= score
+	St	= Service time
+	Oi	= opening time
+	Ci	= Closing time
+
+	the first line is the starting hotel
+	the second line is the ending hotel
+	the next "H" lines are the extra hotels
+	the remaining lines (N-2) are the vertices
+	
+* REMARKS *
+	- The Euclidian distance is used.
+	- for node names: Hi means hotel number i
+			  Ci means customer i
