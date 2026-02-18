@@ -4,8 +4,6 @@ import (
 	"math"
 )
 
-
-
 // Constantes
 
 type NodeType int
@@ -14,8 +12,6 @@ const (
 	TypeHotel NodeType = iota
 	TypeSite
 )
-
-
 
 // Définition du Problème
 
@@ -36,7 +32,7 @@ type Instance struct {
 	MaxDist float64
 
 	Points []*Point
-	
+
 	HotelIDs []int
 	SiteIDs  []int
 
@@ -46,42 +42,36 @@ type Instance struct {
 	EndHotelID   int
 }
 
-
-
 // Définition de la Solution
 
 type Step struct {
-	PointID    int
-	Arrival    float64
-	Wait       float64
-	Departure  float64
+	PointID      int
+	Arrival      float64
+	Wait         float64
+	Departure    float64
 	DistFromPrev float64
 }
 
 type DayTour struct {
-	Steps      []Step
-	DistTotal  float64
-	TimeTotal  float64
+	Steps     []Step
+	DistTotal float64
+	TimeTotal float64
 }
 
 type Solution struct {
 	Instance *Instance
 	Days     []DayTour
-	
+
 	TotalScore float64
 	TotalDist  float64
 }
 
-
-
-// Initialisation de l'instance 
+// Initialisation de l'instance
 
 func NewInstance(nbPoints int) *Instance {
 	inst := &Instance{
-		NbDays:		nbDays,
 		Points:     make([]*Point, nbPoints),
 		DistMatrix: make([][]float64, nbPoints),
-		MaxDist:	make([]float64, nbDays),
 		HotelIDs:   make([]int, 0),
 		SiteIDs:    make([]int, 0),
 	}
@@ -111,16 +101,16 @@ func (inst *Instance) ComputeDistMatrix() {
 
 func (s *Solution) Clone() *Solution {
 	newSol := &Solution{
-		Instance:	s.Instance,
-		TotalScore:	s.TotalScocre,
-		TotalDist:	s.TotalDist,
-		Days:		make([]DayTour, len(s.Days)),
+		Instance:   s.Instance,
+		TotalScore: s.TotalScore,
+		TotalDist:  s.TotalDist,
+		Days:       make([]DayTour, len(s.Days)),
 	}
-	for i, day := range s.Days{
+	for i, day := range s.Days {
 		newDay := DayTour{
-			DistTotal:	day.DistTotal,
-			TimeTotal:	day.TimeTotal,
-			Steps:		make([]Step, len(day.Steps)),
+			DistTotal: day.DistTotal,
+			TimeTotal: day.TimeTotal,
+			Steps:     make([]Step, len(day.Steps)),
 		}
 		copy(newDay.Steps, day.Steps)
 		newSol.Days[i] = newDay
