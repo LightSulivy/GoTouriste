@@ -105,4 +105,3 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 	sol.TotalDist = totalDistGlobal
 	return true, nil
 }
->>>>>>> de65e14d6fa5859a3dcf246b91f6dd79038983b5
