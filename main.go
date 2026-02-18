@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("Erreur chargement instance %s: %v", instancePath, err)
 	}
 
-	// Calcul des stats pour l'affichage demandé
+	// Calcul des stats pour l'affichage
 	nbSites := 0
 	nbHotels := 0
 	for _, p := range instance.Points {
