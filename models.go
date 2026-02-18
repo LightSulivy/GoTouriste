@@ -109,3 +109,21 @@ func (inst *Instance) ComputeDistMatrix() {
 	}
 }
 
+func (s *Solution) Clone() *Solution {
+	newSol := &Solution{
+		Instance:	s.Instance,
+		TotalScore:	s.TotalScocre,
+		TotalDist:	s.TotalDist,
+		Days:		make([]DayTour, len(s.Days)),
+	}
+	for i, day := range s.Days{
+		newDay := DayTour{
+			DistTotal:	day.DistTotal,
+			TimeTotal:	day.TimeTotal,
+			Steps:		make([]Step, len(day.Steps)),
+		}
+		copy(newDay.Steps, day.Steps)
+		newSol.Days[i] = newDay
+	}
+	return newSol
+}
