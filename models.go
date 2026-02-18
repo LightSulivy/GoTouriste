@@ -78,8 +78,10 @@ type Solution struct {
 
 func NewInstance(nbPoints int) *Instance {
 	inst := &Instance{
+		NbDays:		nbDays,
 		Points:     make([]*Point, nbPoints),
 		DistMatrix: make([][]float64, nbPoints),
+		MaxDist:	make([]float64, nbDays),
 		HotelIDs:   make([]int, 0),
 		SiteIDs:    make([]int, 0),
 	}
