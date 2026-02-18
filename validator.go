@@ -24,7 +24,7 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 			return false, fmt.Errorf("Jour %d : Le point de départ (ID %d) n'est pas un hôtel.", dayIdx+1, firstPt.ID)
 		}
 
-		if dayIdw == 0 && firstPt.ID != inst.StartHotelID {
+		if dayIdx == 0 && firstPt.ID != inst.StartHotelID {
 			return false, fmt.Errorf("Jour 1 : Départ invalide. Attendu ID %d, reçu ID %d.", inst.StartHotelID, firstPt.ID)
 		}
 
@@ -37,7 +37,7 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 			prevStep := &sol.Days[dayIdx].Steps[i-1]
 			currStep := &sol.Days[dayIdx].Steps[i]
 			currPt := inst.Points[currStep.PointID]
-			prevPT := inst.Points[prevStep.PointID]
+			prevPt := inst.Points[prevStep.PointID]
 
 			dist := inst.DistMatrix[prevPt.ID][currPt.ID]
 			currentDayDist += dist
@@ -57,7 +57,7 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 				}
 				currStep.Wait = wait
 				startVisit := currStep.Arrival + wait
-				
+
 				if startVisit > currPt.CloseTime {
 					return false, fmt.Errorf("Jour %d : Arrivée tardive au site %d (Arrivée : %.2f, fermeture : %.2f).", dayIdx+1, currPt.ID, startVisit, currPt.CloseTime)
 				}
@@ -67,8 +67,7 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 
 				currentDayTime = startVisit + currPt.ServiceTime
 				currStep.Departure = currentDayTime
-			}
-			else {
+			} else {
 				currStep.Wait = 0
 				currStep.Departure = currentDayTime
 			}
@@ -84,14 +83,7 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 			return false, fmt.Errorf("Dernier jour : Arrivée invalide. Attendu ID %d, reçu ID %d.", inst.EndHotelID, lastPt.ID)
 		}
 
-		budgetMax := 0.0
-
-		if dayIdx < len(inst.MaxDist) {
-			budgetMax = inst.MaxDist[dayIdx]
-		}
-		else if len(inst.MaxDist) > 0 {
-			budgetMax = inst.MaxDist[0]
-		}
+		budgetMax := inst.MaxDist
 
 		if currentDayDist > budgetMax {
 			return false, fmt.Errorf("Jour %d : Budget distance dépassé (%.2f / %.2f).", dayIdx+1, currentDayDist, budgetMax)
