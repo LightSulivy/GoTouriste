@@ -82,19 +82,16 @@ func NewInstance(nbPoints int) *Instance {
 }
 
 func Distance(p1, p2 *Point) float64 {
-	return math.Sqrt(math.Pow(p1.X-p2.X, 2) + math.Pow(p1.Y-p2.Y, 2))
+	return math.Sqrt((p1.X-p2.X)*(p1.X-p2.X) + (p1.Y-p2.Y)*(p1.Y-p2.Y))
 }
 
 func (inst *Instance) ComputeDistMatrix() {
 	for i := 0; i < len(inst.Points); i++ {
-		for j := 0; j < len(inst.Points); j++ {
-			if i == j {
-				inst.DistMatrix[i][j] = 0
-			} else {
-				dist := Distance(inst.Points[i], inst.Points[j])
-				inst.DistMatrix[i][j] = dist
-				inst.DistMatrix[j][i] = dist
-			}
+		inst.DistMatrix[i][i] = 0
+		for j := i + 1; j < len(inst.Points); j++ {
+			dist := Distance(inst.Points[i], inst.Points[j])
+			inst.DistMatrix[i][j] = dist
+			inst.DistMatrix[j][i] = dist
 		}
 	}
 }
