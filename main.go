@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -20,15 +21,32 @@ func main() {
 	solution := SolveGreedy(instance)
 	solution.EvaluateScore()
 
-	fmt.Printf("Solution Gloutonne trouvée :\n")
-	fmt.Printf("  Score Total : %.2f\n", solution.TotalScore)
-	fmt.Printf("  Distance Totale : %.2f\n", solution.TotalDist)
+	fmt.Printf("\n--- Solution Gloutonne initiale ---\n")
+	fmt.Printf("  Score : %.2f\n", solution.TotalScore)
+	fmt.Printf("  Distance : %.2f\n", solution.TotalDist)
 
-	// 3. Exporter la solution
+	// Phase 4 : L'Optimisation locale
+	// On se donne 5 secondes pour améliorer la solution (pour tester vite, à monter à 120s pour la compet)
+	fmt.Println("\nLancement de la phase d'optimisation...")
+	optSolution := LocalSearch(solution, 5*time.Second)
+
+	fmt.Printf("\n--- Solution après Optimisation ---\n")
+	fmt.Printf("  Score : %.2f\n", optSolution.TotalScore)
+	fmt.Printf("  Distance : %.2f\n", optSolution.TotalDist)
+
+	// Juge : Validation officielle finale avant de rendre la copie
+	valid, errValid := EvaluateSolution(optSolution)
+	if !valid {
+		log.Fatalf("Alerte: La solution optimisée est invalide !! Erreur : %v", errValid)
+	} else {
+		fmt.Println("Vérification OK : La solution respecte toutes les règles du concours.")
+	}
+
+	// 3. Exporter la solution finale
 	outputPath := "Inst1.sol"
-	err = WriteSolution(solution, outputPath)
+	err = WriteSolution(optSolution, outputPath)
 	if err != nil {
 		log.Fatalf("Erreur lors de l'écriture de la solution : %v", err)
 	}
-	fmt.Printf("Solution écrite dans %s\n", outputPath)
+	fmt.Printf("\nSolution finale écrite dans %s\n", outputPath)
 }
