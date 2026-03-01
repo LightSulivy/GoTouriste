@@ -26,9 +26,8 @@ func getUnvisited(inst *Instance, sol *Solution) []int {
 	return res
 }
 
-// evalDay est une fonction hyper critique : elle vérifie si on peut refaire le trajet
-// d'une journée précise avec un nouvel ordre de points, sans taper dans les limites
-// de fermeture des sites ou dans le budget distance max.
+// evalDay est une fonction critique : elle vérifie si on peut refaire le trajet d'une journée précise avec un nouvel ordre de points,
+// sans taper dans les limites de fermeture des sites ou dans le budget distance max.
 func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	dist := 0.0
 	t := 0.0
@@ -52,13 +51,12 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 		if pt.Type == TypeSite {
 			wait := 0.0
 			if t < pt.OpenTime {
-				wait = pt.OpenTime - t // on est arrivé trop tôt, on poireaute
+				wait = pt.OpenTime - t
 			}
 			steps[i].Wait = wait
 			startVisit := t + wait
 
 			if startVisit > pt.CloseTime {
-				// Raté, c'est fermé quand on arrive
 				return false, 0, nil
 			}
 			t = startVisit + pt.ServiceTime
@@ -66,7 +64,7 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 		steps[i].Departure = t
 	}
 
-	// est-ce qu'on respecte le budget max en distance de la journée ?
+	// Vérification du budget d'une journée
 	if dist > inst.MaxDist {
 		return false, 0, nil
 	}
@@ -76,8 +74,7 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 }
 
 // LocalSearch : Métaheuristique simple (Type Hill Climbing / Recherche Locale)
-// On va boucler et faire des petits mouvements (Insert, Swap, Relocate)
-// jusqu'à que le chrono indique qu'il faut rendre la copie.
+// On va boucler et faire des petits mouvements (Insert, Swap, Relocate) jusqu'à que le chrono indique qu'il faut rendre la copie.
 func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 	bestSol := sol.Clone()
 	bestSol.EvaluateScore()
@@ -137,7 +134,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 			}
 
 		} else if moveType == 1 && len(unvisited) > 0 { 
-			// SWAP : On vire un site visité et on en met un pas visité à la place
+			// SWAP : On retire un site visité et on en met un pas visité à la place
 			if len(day.Steps) > 2 {
 				// on s'assure de piocher une position qui n'est pas un hôtel
 				pos := 1 + rand.Intn(len(day.Steps)-2)
@@ -178,7 +175,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 					// Ajustement de l'index suite au décalage
 					if pos2 > pos1 { pos2-- }
 					
-					// Re-insertion
+					// Réinsertion
 					newPts := make([]int, 0, len(pts)+1)
 					newPts = append(newPts, pts[:pos2]...)
 					newPts = append(newPts, val)

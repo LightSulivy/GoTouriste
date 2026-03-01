@@ -7,7 +7,6 @@ func (s *Solution) EvaluateScore() {
 	for _, day := range s.Days {
 		// Recalculer la distance du jour si besoin, ou utiliser ce qui est stocké
 		// Si le solver a déjà calculé DistTotal, on l'utilise.
-		// Mais pour être sûr :
 		distDay := 0.0
 		for _, step := range day.Steps {
 			distDay += step.DistFromPrev

@@ -25,7 +25,6 @@ func main() {
 	fmt.Printf("  Score : %.2f\n", solution.TotalScore)
 	fmt.Printf("  Distance : %.2f\n", solution.TotalDist)
 
-	// Phase 4 : L'Optimisation locale
 	// On se donne 5 secondes pour améliorer la solution (pour tester vite, à monter à 120s pour la compet)
 	fmt.Println("\nLancement de la phase d'optimisation...")
 	optSolution := LocalSearch(solution, 5*time.Second)

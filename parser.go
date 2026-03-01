@@ -18,7 +18,7 @@ func LoadInstance(filePath string) (*Instance, error) {
 
 	scanner := bufio.NewScanner(file)
 
-	// Scan until we find the first non-empty line (Header)
+	// Parcours jusqu'à trouver la première ligne non vide (le header)
 	var headerLine string
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -32,16 +32,16 @@ func LoadInstance(filePath string) (*Instance, error) {
 		return nil, fmt.Errorf("fichier vide ou en-tête manquant")
 	}
 
-	// Parsing Header: N H D
+	// Parsing du header: N H D
 	parts := strings.Fields(headerLine)
 	if len(parts) < 3 {
 		return nil, fmt.Errorf("en-tête invalide: %s", headerLine)
 	}
 	// N, _ := strconv.Atoi(parts[0])
-	_, _ = strconv.Atoi(parts[1]) // hCount (unused)
+	_, _ = strconv.Atoi(parts[1])
 	dCount, _ := strconv.Atoi(parts[2])
 
-	// Parsing Tmax (Line 2)
+	// Parsing Tmax (Ligne 2)
 	var tMax float64
 	found := false
 	for scanner.Scan() {
@@ -59,7 +59,7 @@ func LoadInstance(filePath string) (*Instance, error) {
 		return nil, fmt.Errorf("Tmax manquant")
 	}
 
-	// Parsing Td (Line 3) - Array of day max distances
+	// Parsing Td (Ligne 3) - Array des dis max journalières
 	// models.go n'a pas de champ pour les distances par jour, on stocke Tmax dans MaxDist pour le moment.
 	found = false
 	for scanner.Scan() {
@@ -90,7 +90,7 @@ func LoadInstance(filePath string) (*Instance, error) {
 		// Format: name x y Si St Oi Ci
 		fields := strings.Fields(line)
 		if len(fields) < 7 {
-			continue // ou erreur
+			continue
 		}
 
 		name := fields[0]
@@ -130,7 +130,7 @@ func LoadInstance(filePath string) (*Instance, error) {
 
 	// Création de l'instance
 	inst := &Instance{
-		Name:     filePath, // Ou extraire le nom du fichier
+		Name:     filePath,
 		NbDays:   dCount,
 		MaxDist:  tMax,
 		Points:   points,
@@ -139,17 +139,16 @@ func LoadInstance(filePath string) (*Instance, error) {
 	}
 
 	// Initialisation de la matrice de distance
-	// Note: NewInstance dans models.go alloue les maps, mais ici on a reconstruit la struct manuellement.
-	// On doit allouer la matrice.
+	// Note: NewInstance dans models.go alloue les maps, mais ici on a reconstruit la struct manuellement. On doit allouer la matrice.
 	inst.DistMatrix = make([][]float64, len(points))
 	for i := range inst.DistMatrix {
 		inst.DistMatrix[i] = make([]float64, len(points))
 	}
 	inst.ComputeDistMatrix()
 
-	// Assign Start/End Hotels
-	// line 1 of data -> Start Hotel (Index 0)
-	// line 2 of data -> End Hotel (Index 1)
+	// Assignement des hôtels de départ et d'arrivée
+	// ligne 1 des data -> Start Hotel (Index 0)
+	// ligne 2 des data -> End Hotel (Index 1)
 	if len(points) >= 2 {
 		inst.StartHotelID = 0
 		inst.EndHotelID = 1

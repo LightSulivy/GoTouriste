@@ -36,7 +36,7 @@ func SolveGreedy(inst *Instance) *Solution {
 			bestScoreRatio := -1.0
 			var bestArrival, bestWait, bestDeparture, bestDist float64
 
-			// Chercher le meilleur candidat non visité
+			// Cherche le meilleur candidat non visité
 			for i, p := range inst.Points {
 				if visited[i] {
 					continue
@@ -69,7 +69,7 @@ func SolveGreedy(inst *Instance) *Solution {
 						canReturn = true
 					}
 				} else {
-					// Autre jour : peut-on atteindre un hôtel quelconque ?
+					// Autre jour : peut-on atteindre un hôtel quelconque
 					for _, hID := range inst.HotelIDs {
 						distBack := inst.DistMatrix[i][hID]
 						if departure+distBack <= inst.MaxDist {
