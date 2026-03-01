@@ -6,9 +6,17 @@ import (
 	"time"
 )
 
-// Récupère les IDs des sites qu'on n'a pas encore réussi à glisser dans le trajet
-func getUnvisited(inst *Instance, sol *Solution) []int {
-	visited := make(map[int]bool)
+type SearchState struct {
+	sol       *Solution
+	visited   []bool
+	unvisited []int
+}
+
+func newSearchState(sol *Solution) *SearchState {
+	inst := sol.Instance
+	n := len(inst.Points)
+
+	visited := make([]bool, n)
 	for _, day := range sol.Days {
 		for _, step := range day.Steps {
 			if inst.Points[step.PointID].Type == TypeSite {
@@ -17,31 +25,53 @@ func getUnvisited(inst *Instance, sol *Solution) []int {
 		}
 	}
 
-	var res []int
+	var unvisited []int
 	for _, id := range inst.SiteIDs {
 		if !visited[id] {
-			res = append(res, id)
+			unvisited = append(unvisited, id)
 		}
 	}
-	return res
+
+	return &SearchState{
+		sol:       sol,
+		visited:   visited,
+		unvisited: unvisited,
+	}
 }
 
-// evalDay est une fonction critique : elle vérifie si on peut refaire le trajet d'une journée précise avec un nouvel ordre de points,
-// sans taper dans les limites de fermeture des sites ou dans le budget distance max.
+func (ss *SearchState) markVisited(siteID int) {
+	ss.visited[siteID] = true
+	for i, id := range ss.unvisited {
+		if id == siteID {
+			ss.unvisited[i] = ss.unvisited[len(ss.unvisited)-1]
+			ss.unvisited = ss.unvisited[:len(ss.unvisited)-1]
+			break
+		}
+	}
+}
+
+func (ss *SearchState) markUnvisited(siteID int) {
+	ss.visited[siteID] = false
+	ss.unvisited = append(ss.unvisited, siteID)
+}
+
+// evalDay vérifie la faisabilité d'un trajet et retourne les Steps.
 func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	dist := 0.0
 	t := 0.0
+	maxDist := inst.MaxDist
 	steps := make([]Step, len(dayPoints))
 
 	for i, pID := range dayPoints {
 		pt := inst.Points[pID]
 		steps[i].PointID = pID
 
-		// Trajet depuis le point d'avant
 		if i > 0 {
-			prevPt := inst.Points[dayPoints[i-1]]
-			d := inst.DistMatrix[prevPt.ID][pt.ID]
+			d := inst.DistMatrix[dayPoints[i-1]][pID]
 			dist += d
+			if dist > maxDist {
+				return false, 0, nil
+			}
 			t += d
 			steps[i].DistFromPrev = d
 		}
@@ -64,139 +94,230 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 		steps[i].Departure = t
 	}
 
-	// Vérification du budget d'une journée
-	if dist > inst.MaxDist {
-		return false, 0, nil
-	}
-
-	// Tout rentre, c'est valide
 	return true, dist, steps
 }
 
-// LocalSearch : Métaheuristique simple (Type Hill Climbing / Recherche Locale)
-// On va boucler et faire des petits mouvements (Insert, Swap, Relocate) jusqu'à que le chrono indique qu'il faut rendre la copie.
+// evalDayFast vérifie la faisabilité sans construire les Steps.
+func evalDayFast(inst *Instance, dayPoints []int) (bool, float64) {
+	dist := 0.0
+	t := 0.0
+	maxDist := inst.MaxDist
+
+	for i, pID := range dayPoints {
+		pt := inst.Points[pID]
+
+		if i > 0 {
+			d := inst.DistMatrix[dayPoints[i-1]][pID]
+			dist += d
+			if dist > maxDist {
+				return false, 0
+			}
+			t += d
+		}
+
+		if pt.Type == TypeSite {
+			wait := 0.0
+			if t < pt.OpenTime {
+				wait = pt.OpenTime - t
+			}
+			startVisit := t + wait
+			if startVisit > pt.CloseTime {
+				return false, 0
+			}
+			t = startVisit + pt.ServiceTime
+		}
+	}
+
+	return true, dist
+}
+
+func extractDayPoints(day *DayTour, buf []int) []int {
+	buf = buf[:0]
+	for _, s := range day.Steps {
+		buf = append(buf, s.PointID)
+	}
+	return buf
+}
+
+func scoreDelta(inst *Instance, addedID int, removedID int) float64 {
+	delta := 0.0
+	if addedID >= 0 {
+		delta += inst.Points[addedID].Score
+	}
+	if removedID >= 0 {
+		delta -= inst.Points[removedID].Score
+	}
+	return delta
+}
+
+// LocalSearch applique des mouvements locaux (Insert, Swap, Relocate, 2-opt).
+// Arrêt au timeout ou si stagnation détectée.
 func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 	bestSol := sol.Clone()
 	bestSol.EvaluateScore()
-	
+	bestState := newSearchState(bestSol)
+
 	start := time.Now()
 	iterations := 0
-	
-	fmt.Println("Recherche locale (métaheuristique) en cours...")
+	improvements := 0
+	sinceLastImprove := 0
+
+	// Seuil de stagnation adapté à la taille de l'instance
+	nbPoints := len(sol.Instance.Points)
+	maxStagnation := 50000
+	if nbPoints > 80 {
+		maxStagnation = 150000
+	} else if nbPoints > 50 {
+		maxStagnation = 100000
+	}
+
+	fmt.Println("Recherche locale en cours...")
+
+	ptsBuf := make([]int, 0, 128)
+	newPtsBuf := make([]int, 0, 128)
 
 	for time.Since(start) < maxDuration {
 		iterations++
-		
-		// On part toujours de la meilleure solution trouvée
-		currentSol := bestSol.Clone()
-		
-		nbDays := len(currentSol.Days)
+		sinceLastImprove++
+
+		if sinceLastImprove > maxStagnation {
+			fmt.Printf(">> Convergence atteinte après %d itérations sans progrès.\n", maxStagnation)
+			break
+		}
+
+		nbDays := len(bestSol.Days)
 		if nbDays == 0 {
 			break
 		}
 
 		dayIdx := rand.Intn(nbDays)
-		day := &currentSol.Days[dayIdx]
-		
-		unvisited := getUnvisited(currentSol.Instance, currentSol)
-		
-		// Choix au hasard d'un mouvement : 0 (Insertion), 1 (Swap), 2 (Relocate intra-jour)
-		moveType := rand.Intn(3)
-		
-		if moveType == 0 && len(unvisited) > 0 { 
-			// INSERT : On essaye de glisser un site en plus pour gratter du score
-			u := unvisited[rand.Intn(len(unvisited))]
-			pts := make([]int, len(day.Steps))
-			for i, s := range day.Steps { pts[i] = s.PointID }
-			
-			// On ne touche pas aux hôtels (index 0 et fin)
-			if len(pts) >= 2 {
-				pos := 1 + rand.Intn(len(pts)-1)
-				
-				newPts := make([]int, 0, len(pts)+1)
-				newPts = append(newPts, pts[:pos]...)
-				newPts = append(newPts, u)
-				newPts = append(newPts, pts[pos:]...)
-				
-				valid, dist, newSteps := evalDay(currentSol.Instance, newPts)
-				if valid {
-					currentSol.Days[dayIdx].Steps = newSteps
-					currentSol.Days[dayIdx].DistTotal = dist
-					currentSol.EvaluateScore()
-					
-					// On prend si le score est plus grand, OU si on a raccourci le chemin à score égal
-					if currentSol.TotalScore > bestSol.TotalScore {
-						bestSol = currentSol
-					} else if currentSol.TotalScore == bestSol.TotalScore && currentSol.TotalDist < bestSol.TotalDist {
-						bestSol = currentSol
-					}
+		day := &bestSol.Days[dayIdx]
+		nbSteps := len(day.Steps)
+
+		moveType := rand.Intn(4)
+
+		if moveType == 0 && len(bestState.unvisited) > 0 && nbSteps >= 2 {
+			// INSERT : ajouter un site non visité
+			uIdx := rand.Intn(len(bestState.unvisited))
+			u := bestState.unvisited[uIdx]
+			pos := 1 + rand.Intn(nbSteps-1)
+
+			ptsBuf = extractDayPoints(day, ptsBuf)
+			newPtsBuf = newPtsBuf[:0]
+			newPtsBuf = append(newPtsBuf, ptsBuf[:pos]...)
+			newPtsBuf = append(newPtsBuf, u)
+			newPtsBuf = append(newPtsBuf, ptsBuf[pos:]...)
+
+			feasible, newDist := evalDayFast(sol.Instance, newPtsBuf)
+			if feasible {
+				_, _, newSteps := evalDay(sol.Instance, newPtsBuf)
+				bestSol.Days[dayIdx].Steps = newSteps
+				bestSol.Days[dayIdx].DistTotal = newDist
+				bestSol.TotalScore += sol.Instance.Points[u].Score
+				bestSol.TotalDist += newDist - day.DistTotal
+				bestState.markVisited(u)
+				improvements++
+				sinceLastImprove = 0
+			}
+
+		} else if moveType == 1 && len(bestState.unvisited) > 0 && nbSteps > 2 {
+			// SWAP : remplacer un site visité par un non-visité
+			pos := 1 + rand.Intn(nbSteps-2)
+			oldID := day.Steps[pos].PointID
+
+			if sol.Instance.Points[oldID].Type != TypeSite {
+				continue
+			}
+
+			uIdx := rand.Intn(len(bestState.unvisited))
+			u := bestState.unvisited[uIdx]
+
+			ptsBuf = extractDayPoints(day, ptsBuf)
+			ptsBuf[pos] = u
+
+			feasible, newDist := evalDayFast(sol.Instance, ptsBuf)
+			if feasible {
+				delta := scoreDelta(sol.Instance, u, oldID)
+				if delta > 0 || (delta == 0 && newDist < day.DistTotal) {
+					_, _, newSteps := evalDay(sol.Instance, ptsBuf)
+					bestSol.Days[dayIdx].Steps = newSteps
+					bestSol.Days[dayIdx].DistTotal = newDist
+					bestSol.TotalScore += delta
+					bestSol.TotalDist += newDist - day.DistTotal
+					bestState.markVisited(u)
+					bestState.markUnvisited(oldID)
+					improvements++
+					sinceLastImprove = 0
 				}
 			}
 
-		} else if moveType == 1 && len(unvisited) > 0 { 
-			// SWAP : On retire un site visité et on en met un pas visité à la place
-			if len(day.Steps) > 2 {
-				// on s'assure de piocher une position qui n'est pas un hôtel
-				pos := 1 + rand.Intn(len(day.Steps)-2)
-				u := unvisited[rand.Intn(len(unvisited))]
-				
-				pts := make([]int, len(day.Steps))
-				for i, s := range day.Steps { pts[i] = s.PointID }
-				
-				pts[pos] = u
-				
-				valid, dist, newSteps := evalDay(currentSol.Instance, pts)
-				if valid {
-					currentSol.Days[dayIdx].Steps = newSteps
-					currentSol.Days[dayIdx].DistTotal = dist
-					currentSol.EvaluateScore()
-					
-					if currentSol.TotalScore > bestSol.TotalScore || (currentSol.TotalScore == bestSol.TotalScore && currentSol.TotalDist < bestSol.TotalDist) {
-						bestSol = currentSol
-					}
-				}
+		} else if moveType == 2 && nbSteps > 3 {
+			// RELOCATE : déplacer un site à une autre position dans la journée
+			pos1 := 1 + rand.Intn(nbSteps-2)
+			pos2 := 1 + rand.Intn(nbSteps-2)
+			if pos1 == pos2 {
+				continue
 			}
 
-		} else { 
-			// RELOCATE : On décale un site pour le mettre un peu plus loin dans la même journée
-			// Le but c'est juste de décroiser les chemins et d'économiser de la distance magiquement
-			if len(day.Steps) > 3 {
-				pos1 := 1 + rand.Intn(len(day.Steps)-2)
-				pos2 := 1 + rand.Intn(len(day.Steps)-2)
-				
-				if pos1 != pos2 {
-					pts := make([]int, len(day.Steps))
-					for i, s := range day.Steps { pts[i] = s.PointID }
-					
-					// Extraction du point
-					val := pts[pos1]
-					pts = append(pts[:pos1], pts[pos1+1:]...) 
-					
-					// Ajustement de l'index suite au décalage
-					if pos2 > pos1 { pos2-- }
-					
-					// Réinsertion
-					newPts := make([]int, 0, len(pts)+1)
-					newPts = append(newPts, pts[:pos2]...)
-					newPts = append(newPts, val)
-					newPts = append(newPts, pts[pos2:]...)
-					
-					valid, dist, newSteps := evalDay(currentSol.Instance, newPts)
-					if valid {
-						currentSol.Days[dayIdx].Steps = newSteps
-						currentSol.Days[dayIdx].DistTotal = dist
-						currentSol.EvaluateScore()
-						
-						// Le score sera le même mais la distance réduite
-						if currentSol.TotalDist < bestSol.TotalDist {
-							bestSol = currentSol
-						}
-					}
-				}
+			ptsBuf = extractDayPoints(day, ptsBuf)
+			oldDist := day.DistTotal
+
+			val := ptsBuf[pos1]
+			copy(ptsBuf[pos1:], ptsBuf[pos1+1:])
+			ptsBuf = ptsBuf[:len(ptsBuf)-1]
+
+			if pos2 > pos1 {
+				pos2--
+			}
+
+			newPtsBuf = newPtsBuf[:0]
+			newPtsBuf = append(newPtsBuf, ptsBuf[:pos2]...)
+			newPtsBuf = append(newPtsBuf, val)
+			newPtsBuf = append(newPtsBuf, ptsBuf[pos2:]...)
+
+			feasible, newDist := evalDayFast(sol.Instance, newPtsBuf)
+			if feasible && newDist < oldDist {
+				_, _, newSteps := evalDay(sol.Instance, newPtsBuf)
+				bestSol.Days[dayIdx].Steps = newSteps
+				bestSol.TotalDist += newDist - oldDist
+				bestSol.Days[dayIdx].DistTotal = newDist
+				improvements++
+				sinceLastImprove = 0
+			}
+
+		} else if nbSteps > 3 {
+			// 2-OPT : inverser un sous-segment pour décroiser le trajet
+			a := 1 + rand.Intn(nbSteps-2)
+			b := 1 + rand.Intn(nbSteps-2)
+			if a == b {
+				continue
+			}
+			if a > b {
+				a, b = b, a
+			}
+
+			ptsBuf = extractDayPoints(day, ptsBuf)
+			oldDist := day.DistTotal
+
+			for i, j := a, b; i < j; i, j = i+1, j-1 {
+				ptsBuf[i], ptsBuf[j] = ptsBuf[j], ptsBuf[i]
+			}
+
+			feasible, newDist := evalDayFast(sol.Instance, ptsBuf)
+			if feasible && newDist < oldDist {
+				_, _, newSteps := evalDay(sol.Instance, ptsBuf)
+				bestSol.Days[dayIdx].Steps = newSteps
+				bestSol.TotalDist += newDist - oldDist
+				bestSol.Days[dayIdx].DistTotal = newDist
+				improvements++
+				sinceLastImprove = 0
 			}
 		}
 	}
 
-	fmt.Printf(">> Métaheuristique arrêtée. %d mouvements locaux testés.\n", iterations)
+	elapsed := time.Since(start)
+	fmt.Printf(">> Terminé en %.2fs : %d itérations, %d améliorations.\n", elapsed.Seconds(), iterations, improvements)
+
+	bestSol.EvaluateScore()
 	return bestSol
 }
