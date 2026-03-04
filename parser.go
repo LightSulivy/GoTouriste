@@ -59,13 +59,19 @@ func LoadInstance(filePath string) (*Instance, error) {
 		return nil, fmt.Errorf("Tmax manquant")
 	}
 
-	// Parsing Td (Ligne 3) - Array des dis max journalières
-	// models.go n'a pas de champ pour les distances par jour, on stocke Tmax dans MaxDist pour le moment.
+	// Parsing Td (Ligne 3) - Budgets distance par jour
+	var maxDistPerDay []float64
 	found = false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			// On lit juste la ligne pour avancer, on pourra parser si models.go évolue
+			fields := strings.Fields(line)
+			for _, f := range fields {
+				val, err := strconv.ParseFloat(f, 64)
+				if err == nil {
+					maxDistPerDay = append(maxDistPerDay, val)
+				}
+			}
 			found = true
 			break
 		}
@@ -130,12 +136,13 @@ func LoadInstance(filePath string) (*Instance, error) {
 
 	// Création de l'instance
 	inst := &Instance{
-		Name:     filePath,
-		NbDays:   dCount,
-		MaxDist:  tMax,
-		Points:   points,
-		HotelIDs: hotelIDs,
-		SiteIDs:  siteIDs,
+		Name:          filePath,
+		NbDays:        dCount,
+		MaxDist:       tMax,
+		MaxDistPerDay: maxDistPerDay,
+		Points:        points,
+		HotelIDs:      hotelIDs,
+		SiteIDs:       siteIDs,
 	}
 
 	// Initialisation de la matrice de distance

@@ -28,8 +28,9 @@ type Point struct {
 type Instance struct {
 	Name string
 
-	NbDays  int
-	MaxDist float64
+	NbDays         int
+	MaxDist        float64   // Tmax global
+	MaxDistPerDay  []float64 // Td par jour (taille = NbDays)
 
 	Points []*Point
 
@@ -94,6 +95,14 @@ func (inst *Instance) ComputeDistMatrix() {
 			inst.DistMatrix[j][i] = dist
 		}
 	}
+}
+
+// DayMaxDist retourne le budget distance pour le jour donné.
+func (inst *Instance) DayMaxDist(dayIdx int) float64 {
+	if dayIdx < len(inst.MaxDistPerDay) {
+		return inst.MaxDistPerDay[dayIdx]
+	}
+	return inst.MaxDist
 }
 
 func (s *Solution) Clone() *Solution {

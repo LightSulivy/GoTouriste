@@ -2,54 +2,57 @@ package main
 
 import (
 	"math"
+	"math/rand"
+	"sort"
 )
 
-// SolveGreedy construit une solution via une approche gloutonne.
+type candidate struct {
+	id        int
+	ratio     float64
+	arrival   float64
+	wait      float64
+	departure float64
+	dist      float64
+}
+
+// SolveGreedy construit une solution déterministe (meilleur ratio à chaque étape).
 func SolveGreedy(inst *Instance) *Solution {
+	return solveGreedyInternal(inst, 1, nil, 0)
+}
+
+// SolveGreedyRandomized construit une solution randomisée (pioche parmi les k meilleurs).
+func SolveGreedyRandomized(inst *Instance, rclSize int, rng *rand.Rand, ratioMode int) *Solution {
+	return solveGreedyInternal(inst, rclSize, rng, ratioMode)
+}
+
+// rclSize=1 → déterministe, rclSize>1 → randomisé (pioche parmi les top-k)
+func solveGreedyInternal(inst *Instance, rclSize int, rng *rand.Rand, ratioMode int) *Solution {
 	sol := &Solution{
 		Instance: inst,
 		Days:     make([]DayTour, 0),
 	}
 
-	visited := make(map[int]bool)
-	currentLocationID := inst.StartHotelID // Départ du 1er jour
+	visited := make([]bool, len(inst.Points))
+	currentLocationID := inst.StartHotelID
 
 	for d := 0; d < inst.NbDays; d++ {
-		dayTour := DayTour{
-			Steps: make([]Step, 0),
-		}
-
-		// Ajout du point de départ
 		steps := []Step{
-			{
-				PointID:      currentLocationID,
-				Arrival:      0,
-				Wait:         0,
-				Departure:    0,
-				DistFromPrev: 0,
-			},
+			{PointID: currentLocationID, Arrival: 0, Wait: 0, Departure: 0, DistFromPrev: 0},
 		}
 
-		// Boucle gloutonne
 		for {
-			bestCandidateID := -1
-			bestScoreRatio := -1.0
-			var bestArrival, bestWait, bestDeparture, bestDist float64
+			bestRatio := -1.0
+			var bestCand candidate
+			var candidates []candidate
 
-			// Cherche le meilleur candidat non visité
 			for i, p := range inst.Points {
-				if visited[i] {
-					continue
-				}
-				// On ne s'arrête pas aux hôtels en cours de journée
-				if p.Type == TypeHotel {
+				if visited[i] || p.Type == TypeHotel {
 					continue
 				}
 
 				dist := inst.DistMatrix[currentLocationID][i]
 				arrival := steps[len(steps)-1].Departure + dist
 
-				// Vérif fenêtre de temps
 				if arrival > p.CloseTime {
 					continue
 				}
@@ -60,19 +63,16 @@ func SolveGreedy(inst *Instance) *Solution {
 				}
 				departure := arrival + wait + p.ServiceTime
 
-				// Vérif retour hôtel (Fin ou Nimp lequel selon le jour)
 				canReturn := false
 				if d == inst.NbDays-1 {
-					// Dernier jour : impératif retour EndHotelID
 					distBack := inst.DistMatrix[i][inst.EndHotelID]
-					if departure+distBack <= inst.MaxDist {
+					if departure+distBack <= inst.DayMaxDist(d) {
 						canReturn = true
 					}
 				} else {
-					// Autre jour : peut-on atteindre un hôtel quelconque
 					for _, hID := range inst.HotelIDs {
 						distBack := inst.DistMatrix[i][hID]
-						if departure+distBack <= inst.MaxDist {
+						if departure+distBack <= inst.DayMaxDist(d) {
 							canReturn = true
 							break
 						}
@@ -83,38 +83,81 @@ func SolveGreedy(inst *Instance) *Solution {
 					continue
 				}
 
-				// Heuristique : Score / Coût (Distance + Attente)
 				cost := dist + wait
 				if cost < 0.001 {
 					cost = 0.001
 				}
-				ratio := p.Score / cost
 
-				if ratio > bestScoreRatio {
-					bestScoreRatio = ratio
-					bestCandidateID = i
-					bestArrival = arrival
-					bestWait = wait
-					bestDeparture = departure
-					bestDist = dist
+				var ratio float64
+				switch ratioMode {
+				case 1:
+					// Mode urgence : priorise les sites qui ferment bientôt
+					window := p.CloseTime - arrival
+					if window < 0.001 {
+						window = 0.001
+					}
+					ratio = p.Score / window
+				case 2:
+					// Mode score pur : ignore la distance
+					ratio = p.Score
+				case 3:
+					// Mode proximité : nearest neighbor
+					if dist < 0.001 {
+						ratio = 10000
+					} else {
+						ratio = 1.0 / dist
+					}
+				default:
+					// Mode 0 : ratio classique Score/Coût
+					ratio = p.Score / cost
+				}
+
+				c := candidate{id: i, ratio: ratio, arrival: arrival, wait: wait, departure: departure, dist: dist}
+
+				if rclSize <= 1 {
+					// Mode déterministe : on garde juste le meilleur
+					if ratio > bestRatio {
+						bestRatio = ratio
+						bestCand = c
+					}
+				} else {
+					candidates = append(candidates, c)
 				}
 			}
 
-			if bestCandidateID != -1 {
-				// Ajout étape
-				steps = append(steps, Step{
-					PointID:      bestCandidateID,
-					Arrival:      bestArrival,
-					Wait:         bestWait,
-					Departure:    bestDeparture,
-					DistFromPrev: bestDist,
+			// Sélection
+			var chosen candidate
+			found := false
+			if rclSize <= 1 {
+				if bestRatio >= 0 {
+					chosen = bestCand
+					found = true
+				}
+			} else if len(candidates) > 0 {
+				sort.Slice(candidates, func(a, b int) bool {
+					return candidates[a].ratio > candidates[b].ratio
 				})
-				visited[bestCandidateID] = true
-				currentLocationID = bestCandidateID
-			} else {
-				// Plus de candidat valide pour ce jour
+				k := rclSize
+				if k > len(candidates) {
+					k = len(candidates)
+				}
+				chosen = candidates[rng.Intn(k)]
+				found = true
+			}
+
+			if !found {
 				break
 			}
+
+			steps = append(steps, Step{
+				PointID:      chosen.id,
+				Arrival:      chosen.arrival,
+				Wait:         chosen.wait,
+				Departure:    chosen.departure,
+				DistFromPrev: chosen.dist,
+			})
+			visited[chosen.id] = true
+			currentLocationID = chosen.id
 		}
 
 		// Fin de journée : choix hôtel
@@ -122,29 +165,25 @@ func SolveGreedy(inst *Instance) *Solution {
 		if d == inst.NbDays-1 {
 			endHotelID = inst.EndHotelID
 		} else {
-			// Trouver l'hôtel accessible le plus proche
 			bestH := -1
 			minDistH := math.MaxFloat64
-
 			lastStep := steps[len(steps)-1]
 
 			for _, hID := range inst.HotelIDs {
 				dist := inst.DistMatrix[lastStep.PointID][hID]
-				if lastStep.Departure+dist <= inst.MaxDist {
+				if lastStep.Departure+dist <= inst.DayMaxDist(d) {
 					if dist < minDistH {
 						minDistH = dist
 						bestH = hID
 					}
 				}
 			}
-			// Fallback (ne devrait pas arriver si algo OK)
 			if bestH == -1 {
 				bestH = inst.EndHotelID
 			}
 			endHotelID = bestH
 		}
 
-		// Ajout trajet vers hôtel fin
 		lastStep := steps[len(steps)-1]
 		distToEnd := inst.DistMatrix[lastStep.PointID][endHotelID]
 		steps = append(steps, Step{
@@ -155,17 +194,13 @@ func SolveGreedy(inst *Instance) *Solution {
 			DistFromPrev: distToEnd,
 		})
 
-		// Finalisation jour
-		dayTour.Steps = steps
-		dayTour.DistTotal = 0
+		dayTour := DayTour{Steps: steps}
 		for _, s := range steps {
 			dayTour.DistTotal += s.DistFromPrev
 		}
 		dayTour.TimeTotal = steps[len(steps)-1].Arrival
-
 		sol.Days = append(sol.Days, dayTour)
 
-		// Le lendemain démarre ici
 		currentLocationID = endHotelID
 	}
 

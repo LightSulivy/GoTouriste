@@ -83,10 +83,10 @@ func EvaluateSolution(sol *Solution) (bool, error) {
 			return false, fmt.Errorf("Dernier jour : Arrivée invalide. Attendu ID %d, reçu ID %d.", inst.EndHotelID, lastPt.ID)
 		}
 
-		budgetMax := inst.MaxDist
+		budgetMax := inst.DayMaxDist(dayIdx)
 
-		if currentDayDist > budgetMax {
-			return false, fmt.Errorf("Jour %d : Budget distance dépassé (%.2f / %.2f).", dayIdx+1, currentDayDist, budgetMax)
+		if currentDayTime > budgetMax {
+			return false, fmt.Errorf("Jour %d : Budget temps dépassé (%.2f / %.2f).", dayIdx+1, currentDayTime, budgetMax)
 		}
 
 		sol.Days[dayIdx].DistTotal = currentDayDist
