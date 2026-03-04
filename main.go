@@ -25,7 +25,7 @@ func main() {
 	fmt.Printf("  Score : %.2f\n", solution.TotalScore)
 	fmt.Printf("  Distance : %.2f\n", solution.TotalDist)
 
-	// Phase 4 : Optimisation locale (30s max, ou arrêt anticipé si on converge avant)
+	// Optimisation locale (30s max, ou arrêt anticipé si on converge avant)
 	fmt.Println("\nLancement de la phase d'optimisation...")
 	optSolution := LocalSearch(solution, 30*time.Second)
 
