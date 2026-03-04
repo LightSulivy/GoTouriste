@@ -59,8 +59,8 @@ func LoadInstance(filePath string) (*Instance, error) {
 		return nil, fmt.Errorf("Tmax manquant")
 	}
 
-	// Parsing Td (Ligne 3) - Array des dis max journalières
-	// models.go n'a pas de champ pour les distances par jour, on stocke Tmax dans MaxDist pour le moment
+	// Parsing Td (Ligne 3) - Budgets distance par jour
+	var maxDistPerDay []float64
 	found = false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

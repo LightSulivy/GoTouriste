@@ -6,7 +6,16 @@ import (
 	"sort"
 )
 
-// SolveGreedy construit une solution via une approche gloutonne
+type candidate struct {
+	id        int
+	ratio     float64
+	arrival   float64
+	wait      float64
+	departure float64
+	dist      float64
+}
+
+// SolveGreedy construit une solution déterministe (meilleur ratio à chaque étape).
 func SolveGreedy(inst *Instance) *Solution {
 	return solveGreedyInternal(inst, 1, nil, 0)
 }
