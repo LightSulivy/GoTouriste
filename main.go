@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+<<<<<<< HEAD
 // Solutions optimales connues par instance
 var optimalScores = map[string]float64{
 	"1": 816, "2": 900, "3": 1062, "4": 1062, "5": 1116, "6": 1236,
@@ -145,4 +146,47 @@ func main() {
 	}
 
 	fmt.Println("=== Terminé ===")
+=======
+func main() {
+	// 1. Charger l'instance
+	instancePath := filepath.Join("instances", "Inst1.txt")
+	instance, err := LoadInstance(instancePath)
+	if err != nil {
+		log.Fatalf("Erreur chargement instance %s: %v", instancePath, err)
+	}
+
+	fmt.Printf("Instance chargée : %d sites, %d hôtels, Budget : %.2f\n", len(instance.Points)-len(instance.HotelIDs), len(instance.HotelIDs), instance.MaxDist)
+
+	// 2. Résoudre avec l'algo Glouton
+	solution := SolveGreedy(instance)
+	solution.EvaluateScore()
+
+	fmt.Printf("\n--- Solution Gloutonne initiale ---\n")
+	fmt.Printf("  Score : %.2f\n", solution.TotalScore)
+	fmt.Printf("  Distance : %.2f\n", solution.TotalDist)
+
+	// Optimisation locale (30s max, ou arrêt anticipé si on converge avant)
+	fmt.Println("\nLancement de la phase d'optimisation...")
+	optSolution := LocalSearch(solution, 30*time.Second)
+
+	fmt.Printf("\n--- Solution après Optimisation ---\n")
+	fmt.Printf("  Score : %.2f\n", optSolution.TotalScore)
+	fmt.Printf("  Distance : %.2f\n", optSolution.TotalDist)
+
+	// Juge : Validation officielle finale avant de rendre la copie
+	valid, errValid := EvaluateSolution(optSolution)
+	if !valid {
+		log.Fatalf("Alerte: La solution optimisée est invalide !! Erreur : %v", errValid)
+	} else {
+		fmt.Println("Vérification OK : La solution respecte toutes les règles du concours.")
+	}
+
+	// 3. Exporter la solution finale
+	outputPath := "Inst1.sol"
+	err = WriteSolution(optSolution, outputPath)
+	if err != nil {
+		log.Fatalf("Erreur lors de l'écriture de la solution : %v", err)
+	}
+	fmt.Printf("\nSolution finale écrite dans %s\n", outputPath)
+>>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 }
