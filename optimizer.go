@@ -52,12 +52,8 @@ func (ss *SearchState) markUnvisited(siteID int) {
 	ss.unvisited = append(ss.unvisited, siteID)
 }
 
-<<<<<<< HEAD
-func evalDay(inst *Instance, dayIdx int, dayPoints []int) (bool, float64, []Step) {
-=======
 // evalDay vérifie la faisabilité d'un trajet et retourne les Steps
 func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 	dist := 0.0
 	t := 0.0
 	maxDist := inst.DayMaxDist(dayIdx)
@@ -98,12 +94,8 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	return true, dist, steps
 }
 
-<<<<<<< HEAD
-func evalDayFast(inst *Instance, dayIdx int, dayPoints []int) (bool, float64) {
-=======
 // evalDayFast vérifie la faisabilité sans construire les Steps
 func evalDayFast(inst *Instance, dayPoints []int) (bool, float64) {
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 	dist := 0.0
 	t := 0.0
 	maxDist := inst.DayMaxDist(dayIdx)
@@ -144,17 +136,8 @@ func extractDayPoints(day *DayTour, buf []int) []int {
 	return buf
 }
 
-// ─── Voisinage 1 : Best Insertion ───
+// --- Voisinage 1 : Best Insertion ---
 
-<<<<<<< HEAD
-func bestInsertion(sol *Solution, state *SearchState) bool {
-	inst := sol.Instance
-	bestScore := 0.0
-	bestDist := 0.0
-	bestDayIdx := -1
-	bestSiteID := -1
-	var bestSteps []Step
-=======
 // LocalSearch applique des mouvements locaux (Insert, Swap, Relocate, 2-opt)
 // Arrêt au timeout ou si stagnation détectée
 func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
@@ -177,7 +160,6 @@ func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 	}
 
 	fmt.Println("Recherche locale en cours...")
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 
 	ptsBuf := make([]int, 0, 128)
 	newPtsBuf := make([]int, 0, 128)
@@ -231,7 +213,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 	return true
 }
 
-// ─── Voisinage 2 : 2-opt exhaustif ───
+// --- Voisinage 2 : 2-opt exhaustif ---
 
 func apply2OptAllDays(sol *Solution) bool {
 	inst := sol.Instance
@@ -277,7 +259,7 @@ func apply2OptAllDays(sol *Solution) bool {
 	return improved
 }
 
-// ─── Voisinage 3 : Best Swap ───
+// --- Voisinage 3 : Best Swap ---
 
 func bestSwap(sol *Solution, state *SearchState) bool {
 	inst := sol.Instance
@@ -349,7 +331,7 @@ func bestSwap(sol *Solution, state *SearchState) bool {
 	return true
 }
 
-// ─── Voisinage 4 : Relocate (intra + inter-jour) ───
+// --- Voisinage 4 : Relocate (intra + inter-jour) ---
 
 func applyRelocate(sol *Solution, state *SearchState, rng *rand.Rand, maxIter int) bool {
 	inst := sol.Instance
@@ -490,7 +472,7 @@ func applyRelocate(sol *Solution, state *SearchState, rng *rand.Rand, maxIter in
 	return improved
 }
 
-// ─── Voisinage 5 : Hotel Swap ───
+// --- Voisinage 5 : Hotel Swap ---
 
 func tryHotelSwap(sol *Solution, rng *rand.Rand) bool {
 	inst := sol.Instance
@@ -585,7 +567,7 @@ func tryHotelSwap(sol *Solution, rng *rand.Rand) bool {
 	return improved
 }
 
-// ─── VND : Variable Neighbourhood Descent ───
+// --- VND : Variable Neighbourhood Descent ---
 
 func applyVND(sol *Solution, rng *rand.Rand, deadline time.Time) {
 	k := 0
@@ -631,7 +613,7 @@ func applyVND(sol *Solution, rng *rand.Rand, deadline time.Time) {
 	}
 }
 
-// ─── Shaking : Destruction aléatoire d'une solution ───
+// --- Shaking : Destruction aléatoire d'une solution ---
 
 func applyShake(sol *Solution, force int, rng *rand.Rand) {
 	inst := sol.Instance
@@ -773,7 +755,7 @@ func clearDay(sol *Solution, inst *Instance, dayIdx int) {
 	}
 }
 
-// ─── GRASP + VNS hybride parallèle ───
+// --- GRASP + VNS hybride parallèle ---
 
 func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) *Solution {
 	start := time.Now()
@@ -815,7 +797,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 			deadline := time.Now().Add(remaining)
 
 			if workerID < nbGRASP {
-				// ─── WORKERS GRASP (Exploration large) ───
+				// --- WORKERS GRASP (Exploration large) ---
 				rclSize := 2 + (workerID % 5) + 1
 				ratioMode := workerID % 4 // 0=Score/Coût, 1=Urgence, 2=Score, 3=Proximité
 
@@ -853,7 +835,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 				}
 
 			} else {
-				// ─── WORKERS VNS / ILS (Exploitation profonde) ───
+				// --- WORKERS VNS / ILS (Exploitation profonde) ---
 				shakeForce := 1
 				maxForce := 4
 				noImproveCount := 0
