@@ -52,12 +52,7 @@ func (ss *SearchState) markUnvisited(siteID int) {
 	ss.unvisited = append(ss.unvisited, siteID)
 }
 
-<<<<<<< HEAD
 func evalDay(inst *Instance, dayIdx int, dayPoints []int) (bool, float64, []Step) {
-=======
-// evalDay vérifie la faisabilité d'un trajet et retourne les Steps
-func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 	dist := 0.0
 	t := 0.0
 	maxDist := inst.DayMaxDist(dayIdx)
@@ -98,12 +93,7 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	return true, dist, steps
 }
 
-<<<<<<< HEAD
 func evalDayFast(inst *Instance, dayIdx int, dayPoints []int) (bool, float64) {
-=======
-// evalDayFast vérifie la faisabilité sans construire les Steps
-func evalDayFast(inst *Instance, dayPoints []int) (bool, float64) {
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 	dist := 0.0
 	t := 0.0
 	maxDist := inst.DayMaxDist(dayIdx)
@@ -146,7 +136,6 @@ func extractDayPoints(day *DayTour, buf []int) []int {
 
 // ─── Voisinage 1 : Best Insertion ───
 
-<<<<<<< HEAD
 func bestInsertion(sol *Solution, state *SearchState) bool {
 	inst := sol.Instance
 	bestScore := 0.0
@@ -154,30 +143,6 @@ func bestInsertion(sol *Solution, state *SearchState) bool {
 	bestDayIdx := -1
 	bestSiteID := -1
 	var bestSteps []Step
-=======
-// LocalSearch applique des mouvements locaux (Insert, Swap, Relocate, 2-opt)
-// Arrêt au timeout ou si stagnation détectée
-func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
-	bestSol := sol.Clone()
-	bestSol.EvaluateScore()
-	bestState := newSearchState(bestSol)
-
-	start := time.Now()
-	iterations := 0
-	improvements := 0
-	sinceLastImprove := 0
-
-	// Seuil de stagnation adapté à la taille de l'instance
-	nbPoints := len(sol.Instance.Points)
-	maxStagnation := 50000
-	if nbPoints > 80 {
-		maxStagnation = 150000
-	} else if nbPoints > 50 {
-		maxStagnation = 100000
-	}
-
-	fmt.Println("Recherche locale en cours...")
->>>>>>> 8d3553d17528eb8142d1bd8548290aceb867257b
 
 	ptsBuf := make([]int, 0, 128)
 	newPtsBuf := make([]int, 0, 128)
@@ -706,7 +671,7 @@ func applyShake(sol *Solution, force int, rng *rand.Rand) {
 func removeSitesRandom(sol *Solution, inst *Instance, count int, rng *rand.Rand) {
 	// Collecte de tous les sites visitables
 	type sitePos struct {
-		dayIdx int
+		dayIdx  int
 		stepIdx int
 	}
 	var positions []sitePos
@@ -889,7 +854,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 					if candidate.TotalScore > localBest.TotalScore ||
 						(candidate.TotalScore == localBest.TotalScore && candidate.TotalDist < localBest.TotalDist) {
 						localBest = candidate
-						shakeForce = 1     // Amélioration → on repart doucement
+						shakeForce = 1 // Amélioration → on repart doucement
 						noImproveCount = 0
 					} else {
 						noImproveCount++
