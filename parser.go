@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// LoadInstance lit un fichier .txt d'instance et retourne une structure Instance remplie.
+// LoadInstance lit un fichier .txt d'instance et retourne une structure Instance remplie
 func LoadInstance(filePath string) (*Instance, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -60,7 +60,7 @@ func LoadInstance(filePath string) (*Instance, error) {
 	}
 
 	// Parsing Td (Ligne 3) - Array des dis max journalières
-	// models.go n'a pas de champ pour les distances par jour, on stocke Tmax dans MaxDist pour le moment.
+	// models.go n'a pas de champ pour les distances par jour, on stocke Tmax dans MaxDist pour le moment
 	found = false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

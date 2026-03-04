@@ -55,7 +55,7 @@ func (ss *SearchState) markUnvisited(siteID int) {
 	ss.unvisited = append(ss.unvisited, siteID)
 }
 
-// evalDay vérifie la faisabilité d'un trajet et retourne les Steps.
+// evalDay vérifie la faisabilité d'un trajet et retourne les Steps
 func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	dist := 0.0
 	t := 0.0
@@ -97,7 +97,7 @@ func evalDay(inst *Instance, dayPoints []int) (bool, float64, []Step) {
 	return true, dist, steps
 }
 
-// evalDayFast vérifie la faisabilité sans construire les Steps.
+// evalDayFast vérifie la faisabilité sans construire les Steps
 func evalDayFast(inst *Instance, dayPoints []int) (bool, float64) {
 	dist := 0.0
 	t := 0.0
@@ -150,8 +150,8 @@ func scoreDelta(inst *Instance, addedID int, removedID int) float64 {
 	return delta
 }
 
-// LocalSearch applique des mouvements locaux (Insert, Swap, Relocate, 2-opt).
-// Arrêt au timeout ou si stagnation détectée.
+// LocalSearch applique des mouvements locaux (Insert, Swap, Relocate, 2-opt)
+// Arrêt au timeout ou si stagnation détectée
 func LocalSearch(sol *Solution, maxDuration time.Duration) *Solution {
 	bestSol := sol.Clone()
 	bestSol.EvaluateScore()

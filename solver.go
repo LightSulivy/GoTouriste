@@ -4,7 +4,7 @@ import (
 	"math"
 )
 
-// SolveGreedy construit une solution via une approche gloutonne.
+// SolveGreedy construit une solution via une approche gloutonne
 func SolveGreedy(inst *Instance) *Solution {
 	sol := &Solution{
 		Instance: inst,
