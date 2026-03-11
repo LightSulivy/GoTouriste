@@ -562,6 +562,7 @@ func applyVND(sol *Solution, rng *rand.Rand, deadline time.Time) {
 
 		switch k {
 		case 0:
+			// Insertion : Tente d'ajouter un site non visité pour augmenter le score
 			state := newSearchState(sol)
 			for bestInsertion(sol, state) {
 				if time.Now().After(deadline) {
@@ -570,9 +571,11 @@ func applyVND(sol *Solution, rng *rand.Rand, deadline time.Time) {
 			}
 			sol.EvaluateScore()
 		case 1:
+			// 2-Opt : Décroise les chemins dans une même journée pour gagner de la distance utile
 			apply2OptAllDays(sol)
 			sol.EvaluateScore()
 		case 2:
+			// Échange (Swap) : Remplace un site prévu par un meilleur non visité
 			state := newSearchState(sol)
 			for bestSwap(sol, state) {
 				if time.Now().After(deadline) {
@@ -581,10 +584,12 @@ func applyVND(sol *Solution, rng *rand.Rand, deadline time.Time) {
 			}
 			sol.EvaluateScore()
 		case 3:
+			// Déplacement (Relocate) : Réorganise les sites (même jour/inter-jour) pour boucher les trous
 			state := newSearchState(sol)
 			applyRelocate(sol, state, rng, 2000)
 			sol.EvaluateScore()
 		case 4:
+			// Hôtel (Hotel Swap) : Raccourcit les trajets fin/début de journée en changeant l'hôtel
 			tryHotelSwap(sol, rng)
 		}
 
@@ -740,7 +745,7 @@ func clearDay(sol *Solution, inst *Instance, dayIdx int) {
 
 // --- GRASP + VNS hybride parallèle ---
 
-func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) *Solution {
+func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) (*Solution, time.Duration) {
 	start := time.Now()
 	globalDeadline := start.Add(maxDuration)
 
@@ -748,17 +753,23 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 	bestSol.EvaluateScore()
 	rng0 := rand.New(rand.NewSource(42))
 	applyVND(bestSol, rng0, globalDeadline)
+	bestFoundAt := time.Since(start)
 
 	// Arrêt si optimal déjà trouvé
 	if targetScore > 0 && bestSol.TotalScore >= targetScore {
-		return bestSol
+		return bestSol, bestFoundAt
 	}
 
 	inst := sol.Instance
 	remaining := maxDuration - time.Since(start)
 
 	if remaining < 500*time.Millisecond {
-		return bestSol
+		return bestSol, bestFoundAt
+	}
+
+	type workerResult struct {
+		sol     *Solution
+		foundAt time.Duration
 	}
 
 	nbWorkers := runtime.NumCPU()
@@ -766,7 +777,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 		nbWorkers = 4
 	}
 	nbGRASP := nbWorkers / 2 // Moitié exploration
-	results := make([]*Solution, nbWorkers)
+	results := make([]workerResult, nbWorkers)
 	var wg sync.WaitGroup
 	done := make(chan struct{})
 
@@ -777,6 +788,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 			seed := time.Now().UnixNano() + int64(workerID*1337)
 			rng := rand.New(rand.NewSource(seed))
 			localBest := bestSol.Clone()
+			localBestFoundAt := bestFoundAt
 			deadline := time.Now().Add(remaining)
 
 			if workerID < nbGRASP {
@@ -787,7 +799,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 				for time.Now().Before(deadline) {
 					select {
 					case <-done:
-						results[workerID] = localBest
+						results[workerID] = workerResult{sol: localBest, foundAt: localBestFoundAt}
 						return
 					default:
 					}
@@ -804,10 +816,11 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 					if candidate.TotalScore > localBest.TotalScore ||
 						(candidate.TotalScore == localBest.TotalScore && candidate.TotalDist < localBest.TotalDist) {
 						localBest = candidate
+						localBestFoundAt = time.Since(start)
 					}
 
 					if targetScore > 0 && localBest.TotalScore >= targetScore {
-						results[workerID] = localBest
+						results[workerID] = workerResult{sol: localBest, foundAt: localBestFoundAt}
 						select {
 						case <-done:
 						default:
@@ -826,7 +839,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 				for time.Now().Before(deadline) {
 					select {
 					case <-done:
-						results[workerID] = localBest
+						results[workerID] = workerResult{sol: localBest, foundAt: localBestFoundAt}
 						return
 					default:
 					}
@@ -854,6 +867,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 					if candidate.TotalScore > localBest.TotalScore ||
 						(candidate.TotalScore == localBest.TotalScore && candidate.TotalDist < localBest.TotalDist) {
 						localBest = candidate
+						localBestFoundAt = time.Since(start)
 						shakeForce = 1 // Amélioration → on repart doucement
 						noImproveCount = 0
 					} else {
@@ -868,7 +882,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 					}
 
 					if targetScore > 0 && localBest.TotalScore >= targetScore {
-						results[workerID] = localBest
+						results[workerID] = workerResult{sol: localBest, foundAt: localBestFoundAt}
 						select {
 						case <-done:
 						default:
@@ -879,26 +893,27 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 				}
 			}
 
-			results[workerID] = localBest
+			results[workerID] = workerResult{sol: localBest, foundAt: localBestFoundAt}
 		}(w)
 	}
 
 	wg.Wait()
 
 	for _, r := range results {
-		if r == nil {
+		if r.sol == nil {
 			continue
 		}
-		valid, _ := EvaluateSolution(r)
+		valid, _ := EvaluateSolution(r.sol)
 		if !valid {
 			continue
 		}
-		if r.TotalScore > bestSol.TotalScore ||
-			(r.TotalScore == bestSol.TotalScore && r.TotalDist < bestSol.TotalDist) {
-			bestSol = r
+		if r.sol.TotalScore > bestSol.TotalScore ||
+			(r.sol.TotalScore == bestSol.TotalScore && r.sol.TotalDist < bestSol.TotalDist) {
+			bestSol = r.sol
+			bestFoundAt = r.foundAt
 		}
 	}
 
 	bestSol.EvaluateScore()
-	return bestSol
+	return bestSol, bestFoundAt
 }

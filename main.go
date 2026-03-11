@@ -66,14 +66,13 @@ func main() {
 		solution.EvaluateScore()
 
 		var optSolution *Solution
+		var elapsed time.Duration
 		if target > 0 && solution.TotalScore >= target {
 			optSolution = solution
+			elapsed = time.Since(timer)
 		} else {
-			optSolution = LocalSearch(solution, 120*time.Second, target)
+			optSolution, elapsed = LocalSearch(solution, 120*time.Second, target)
 		}
-
-		// Timer s'arrête avant l'écriture
-		elapsed := time.Since(timer)
 
 		// Validation
 		valid, errValid := EvaluateSolution(optSolution)
