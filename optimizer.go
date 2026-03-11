@@ -157,7 +157,7 @@ func bestInsertion(sol *Solution, state *SearchState) bool {
 			ptsBuf = extractDayPoints(day, ptsBuf)
 
 			for pos := 1; pos < len(ptsBuf); pos++ {
-				// PRUNING: Évaluation ultra-rapide de la distance
+				// PRUNING : Évaluation ultra-rapide de la distance
 				prevID := ptsBuf[pos-1]
 				nextID := ptsBuf[pos] // pos est garanti < len car ptsBuf inclut EndHotel
 				deltaDist := inst.DistMatrix[prevID][u] + inst.DistMatrix[u][nextID] - inst.DistMatrix[prevID][nextID]
@@ -276,7 +276,7 @@ func bestSwap(sol *Solution, state *SearchState) bool {
 					continue
 				}
 
-				// PRUNING: Évaluation ultra-rapide de la distance
+				// PRUNING : Évaluation ultra-rapide de la distance
 				deltaDist := (inst.DistMatrix[prevID][u] + inst.DistMatrix[u][nextID]) - (inst.DistMatrix[prevID][oldID] + inst.DistMatrix[oldID][nextID])
 				if day.DistTotal+deltaDist > inst.DayMaxDist(dIdx) {
 					continue
@@ -390,7 +390,7 @@ func applyRelocate(sol *Solution, state *SearchState, rng *rand.Rand, maxIter in
 			bestDestDist := -1.0
 			bestDestPos := -1
 			for p := 1; p < destLen; p++ {
-				// PRUNING: Évaluation ultra-rapide de la distance
+				// PRUNING : Évaluation ultra-rapide de la distance
 				prevID := newPtsBuf[p-1]
 				nextID := newPtsBuf[p]
 				deltaDist := inst.DistMatrix[prevID][siteID] + inst.DistMatrix[siteID][nextID] - inst.DistMatrix[prevID][nextID]
@@ -429,7 +429,7 @@ func applyRelocate(sol *Solution, state *SearchState, rng *rand.Rand, maxIter in
 			pos := 1 + rng.Intn(nbSteps-1)
 			ptsBuf = extractDayPoints(day, ptsBuf)
 
-			// PRUNING: Évaluation ultra-rapide de la distance
+			// PRUNING : Évaluation ultra-rapide de la distance
 			prevID := ptsBuf[pos-1]
 			nextID := ptsBuf[pos]
 			deltaDist := inst.DistMatrix[prevID][u] + inst.DistMatrix[u][nextID] - inst.DistMatrix[prevID][nextID]
@@ -782,7 +782,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 			if workerID < nbGRASP {
 				// --- WORKERS GRASP (Exploration large) ---
 				rclSize := 2 + (workerID % 5) + 1
-				ratioMode := workerID % 4 // 0=Score/Coût, 1=Urgence, 2=Score, 3=Proximité
+				ratioMode := workerID % 4 // 0 = Score/Coût, 1 = Urgence, 2 = Score, 3 = Proximité
 
 				for time.Now().Before(deadline) {
 					select {
@@ -854,7 +854,7 @@ func LocalSearch(sol *Solution, maxDuration time.Duration, targetScore float64) 
 					if candidate.TotalScore > localBest.TotalScore ||
 						(candidate.TotalScore == localBest.TotalScore && candidate.TotalDist < localBest.TotalDist) {
 						localBest = candidate
-						shakeForce = 1 // Amélioration → on repart doucement
+						shakeForce = 1 // Amélioration -> on repart doucement
 						noImproveCount = 0
 					} else {
 						noImproveCount++
